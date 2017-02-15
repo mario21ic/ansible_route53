@@ -1,0 +1,35 @@
+---
+- hosts: localhost
+  connection: local
+  gather_facts: no
+  vars:
+    zone: mydomain.com
+  tasks:
+    - name: get DNSName elb prod
+      command: "aws elb describe-load-balancers --load-balancer-names elb-prod 
+                --query 'LoadBalancerDescriptions[0].DNSName' --output text"
+      register: DNSName
+    - name: get zone id elb prod
+      command: "aws elb describe-load-balancers --load-balancer-names elb-prod 
+                --query 'LoadBalancerDescriptions[0].CanonicalHostedZoneNameID' --output text"
+      register: CanonicalHostedZoneNameID
+    - name: create alias www.mydomain.com
+      route53:
+        command: create
+        zone: "{{ zone }}"
+        record: www.mydomain.com
+        type: A
+        value: "{{ DNSName.stdout }}"
+        alias: True
+        overwrite: yes
+        alias_hosted_zone_id: "{{ CanonicalHostedZoneNameID.stdout }}"
+    - name: create alias mydomain.com
+      route53:
+        command: create
+        zone: "{{ zone }}"
+        record: mydomain.com
+        type: A
+        value: "{{ DNSName.stdout }}"
+        alias: True
+        overwrite: yes
+        alias_hosted_zone_id: "{{ CanonicalHostedZoneNameID.stdout }}"
